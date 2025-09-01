@@ -90,7 +90,10 @@ export default function Home() {
   return (
     <div className="bg-background h-screen flex flex-col">
       <div className="w-full md:max-w-lg mx-auto min-h-dvh flex flex-col p-2 md:p-0 bg-background">
-        <div className="text-xl font-bold p-2"> : &gt;</div>
+        <div>
+          <div className="text-xl font-bold p-2"> : &gt;</div>
+          <div className="text-xs text-gray-400">designed and developed by</div>
+        </div>
         <div className="flex-1 flex flex-col justify-between">
           <div className="flex justify-between">
             <Link
