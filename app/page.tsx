@@ -1,103 +1,194 @@
+"use client";
+import { ArrowUp, TrashIcon, GithubIcon } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { questions } from "@/lib/questions";
+import { Chat } from "@/types";
+import HistoryBubble from "@/components/HistoryBubble";
+import ChatBubble from "@/components/ChatBubble";
+import Link from "next/link";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [msg, setMsg] = useState<string>("");
+  const [chatHistory, setChatHistory] = useState<Chat[]>([]);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [waitingForReply, setWaitingForReply] = useState<Boolean>(false);
+  const [isServerOk, setIsServerOk] = useState<boolean>(false);
+  useEffect(() => {
+    const localHistory = localStorage.getItem("history");
+    const jsonHistory = localHistory ? JSON.parse(localHistory) : [];
+    setChatHistory(jsonHistory);
+  }, []);
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
+  const pingServer = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}`);
+      if (res.ok) setIsServerOk(true);
+      if (!res.ok) setIsServerOk(false);
+    } catch (error) {
+      setIsServerOk(false);
+    }
+  };
+  useEffect(() => {
+    pingServer();
+  }, []);
+  const sendMsg = async () => {
+    if (!msg) return;
+    const localHistory = localStorage.getItem("history");
+    const jsonHistory = localHistory ? JSON.parse(localHistory) : [];
+    const updatedHistory = [...jsonHistory, { role: "user", content: msg }];
+    setChatHistory((prev) => [...prev, { role: "user", content: msg }]);
+    setMsg("");
+    localStorage.setItem("history", JSON.stringify(updatedHistory));
+    try {
+      setWaitingForReply(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/answer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: msg,
+          history: jsonHistory,
+        }),
+      });
+      const data = await res.json();
+      const finalHistory = [
+        ...updatedHistory,
+        { role: "assistant", content: data.answer },
+      ];
+      setChatHistory((prev) => [
+        ...prev,
+        { role: "assistant", content: data.answer },
+      ]);
+      localStorage.setItem("history", JSON.stringify(finalHistory));
+      console.log(data);
+    } catch (error) {
+      const finalHistory = [
+        ...updatedHistory,
+        { role: "assistant", content: "Failed to connect. Please Refresh." },
+      ];
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Failed to connect. Delete the chat and retry!",
+        },
+      ]);
+      localStorage.setItem("history", JSON.stringify(finalHistory));
+    } finally {
+      setWaitingForReply(false);
+    }
+  };
+  const clearChat = () => {
+    localStorage.clear();
+    setChatHistory([]);
+  };
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  return (
+    <div className="bg-background h-screen flex flex-col">
+      <div className="w-full md:max-w-lg mx-auto min-h-dvh flex flex-col p-2 md:p-0 bg-background">
+        <div className="text-xl font-bold p-2"> : &gt;</div>
+        <div className="flex-1 flex flex-col justify-between">
+          <div className="flex justify-between">
+            <Link
+              href={
+                "https://drive.google.com/file/d/15I_ASssvRNQaRakZPHxg6v0c23JYkzrm/view"
+              }
+            >
+              <div className="flex gap-2 bg-card-background border border-border px-4 py-2 w-fit rounded-2xl items-center hover:cursor-pointer">
+                <div className="w-10 h-10 text-accent-foreground rounded-[5px] bg-accent font-bold flex justify-center items-center">
+                  <Image
+                    src={"/document.svg"}
+                    width={20}
+                    height={20}
+                    alt="document"
+                  />
+                </div>
+                <div>
+                  <div className="text-card-foreground">priyanshugupta.pdf</div>
+                  <div className="text-gray-500">PDF</div>
+                </div>
+              </div>
+            </Link>
+            <div className="flex gap-2">
+              <button
+                disabled={!chatHistory.length}
+                className="bg-card border border-border w-10 h-10 flex justify-center items-center rounded-[10px] hover:cursor-pointer disabled:text-gray-500 text-red-700"
+                onClick={clearChat}
+              >
+                <TrashIcon />
+              </button>
+              <Link
+                href={"https://github.com/priyanshuguptadev/rag-frontend"}
+                className="bg-card border border-border w-10 h-10 flex justify-center items-center rounded-[10px] hover:cursor-pointer text-white"
+              >
+                <GithubIcon />
+              </Link>
+            </div>
+          </div>
+          {!isServerOk ? (
+            <p className="text-center mt-8 animate-pulse text-xs">
+              Connecting to server...
+            </p>
+          ) : (
+            !chatHistory.length &&
+            !msg && (
+              <p className="text-xs text-green-600 text-center mt-8">
+                Server is OK.
+              </p>
+            )
+          )}
+          <div className="flex-1 overflow-y-auto mb-24">
+            {chatHistory && (
+              <div className="flex flex-col gap-4 items-end my-8">
+                {chatHistory.map((c, i) => (
+                  <ChatBubble key={i} role={c.role} content={c.content} />
+                ))}
+              </div>
+            )}
+            <div>
+              {waitingForReply && (
+                <span className="animate-pulse text-gray-300">replying</span>
+              )}
+            </div>
+            {chatHistory.length > 0 && <div ref={chatEndRef}></div>}
+          </div>
+          {chatHistory.length == 0 && !msg && (
+            <div className="flex flex-col gap-2 m-2 w-full">
+              {questions.map((q) => (
+                <HistoryBubble
+                  content={q.content}
+                  onclick={() => setMsg(q.content)}
+                  id={q.id}
+                  key={q.id}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        <div className="border-2 p-1 rounded-full shadow-sm w-full flex gap-2 mb-8 bg-input flex-shrink-0">
+          <input
+            disabled={!isServerOk}
+            type="text"
+            value={msg || ""}
+            className="ml-2 p-1 w-full outline-none bg-transparent"
+            placeholder="Who is priyanshu?"
+            onChange={(e) => setMsg(e.target.value)}
+            onKeyDown={(e) => e.key == "Enter" && sendMsg()}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <button
+            disabled={!msg}
+            onClick={sendMsg}
+            className="bg-primary disabled:bg-muted rounded-full text-primary-foreground p-2 hover:cursor-pointer hover:opacity-70"
+          >
+            <ArrowUp />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
