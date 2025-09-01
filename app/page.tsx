@@ -122,7 +122,7 @@ export default function Home() {
                 <TrashIcon />
               </button>
               <Link
-                href={"https://github.com/priyanshuguptadev/rag-frontend"}
+                href={"https://github.com/priyanshuguptadev/chat"}
                 className="bg-card border border-border w-10 h-10 flex justify-center items-center rounded-[10px] hover:cursor-pointer text-white"
               >
                 <GithubIcon />
